@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Alert, ImageBackground } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, ImageBackground } from 'react-native';
+import * as Location from 'expo-location';
 import * as LocalAuthentication from 'expo-local-authentication';
 import moment from 'moment';
 import 'moment/locale/es';
@@ -12,6 +13,8 @@ export const Registro = () => {
   const [salidaTime, setSalidaTime] = useState(null);
   const [recesoTime, setRecesoTime] = useState(null);
   const [recesoCountdown, setRecesoCountdown] = useState(null);
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -39,6 +42,18 @@ export const Registro = () => {
 
     return () => clearInterval(interval);
   }, [recesoTime, recesoCountdown]);
+
+  const getLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      setErrorMsg('Permission to access location was denied');
+      return;
+    }
+
+    let location = await Location.getCurrentPositionAsync({});
+    setLocation(location);
+    return location;
+  };
 
   const authenticate = async (callback) => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -69,23 +84,42 @@ export const Registro = () => {
   };
 
   const handleEntrada = () => {
-    authenticate(() => {
+    authenticate(async () => {
+      const location = await getLocation();
       setEntradaTime(moment().format('LTS'));
+      if (location) {
+        Alert.alert('Ubicación', `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`);
+      }
     });
   };
 
   const handleSalida = () => {
-    authenticate(() => {
+    authenticate(async () => {
+      const location = await getLocation();
       setSalidaTime(moment().format('LTS'));
+      if (location) {
+        Alert.alert('Ubicación', `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`);
+      }
     });
   };
 
   const handleReceso = () => {
-    authenticate(() => {
+    authenticate(async () => {
+      const location = await getLocation();
       setRecesoTime(moment());
       setRecesoCountdown('40:00');
+      if (location) {
+        Alert.alert('Ubicación', `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`);
+      }
     });
   };
+
+  let text = 'Waiting..';
+  if (errorMsg) {
+    text = errorMsg;
+  } else if (location) {
+    text = `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`;
+  }
 
   return (
     <ImageBackground 
@@ -95,7 +129,6 @@ export const Registro = () => {
       <View style={styles.overlay}>
         <View style={styles.container}>
           <Text style={styles.welcomeText}>Bienvenido, {username}</Text>
-          <Image source={require("./imagenes/imgLogin.png")} style={styles.userImage} />
           <Text style={styles.currentTime}>{currentTime}</Text>
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={handleEntrada}>
@@ -141,11 +174,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
-  userImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 20,
-  },
   currentTime: {
     fontSize: 36,
     fontWeight: 'bold',
@@ -177,3 +205,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default Registro;
