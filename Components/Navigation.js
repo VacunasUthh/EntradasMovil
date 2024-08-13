@@ -4,6 +4,7 @@ import { NavigationContainer, useFocusEffect } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Icon } from "react-native-elements";
 import Login from "./Login";
+import Register from "./RegisterForm";
 import MenuP from "./Main";
 import { Registro } from "./Registro";
 
@@ -49,6 +50,8 @@ export default function Navigation() {
                 iconName = focused ? "login" : "login-variant";
               } else if (route.name === "Cerrar Sesión") {
                 iconName = focused ? "logout" : "logout-variant";
+              } else if (route.name === "RegisterForm") {
+                iconName = focused ? "account-plus" : "account-plus-outline";
               }
 
               return <Icon type="material-community" name={iconName} size={size} color={color} />;
@@ -69,11 +72,19 @@ export default function Navigation() {
               <Tab.Screen name="Cerrar Sesión">
                 {() => <CerrarSesionScreen confirmLogout={confirmLogout} />}
               </Tab.Screen>
+              {/* <Tab.Screen name="RegisterForm">
+                {() => <Register />}
+              </Tab.Screen> */}
             </>
           ) : (
-            <Tab.Screen name="Login">
-              {() => <LoginScreen setIsLoggedIn={setIsLoggedIn} />}
-            </Tab.Screen>
+            <>
+              <Tab.Screen name="Login">
+                {() => <LoginScreen setIsLoggedIn={setIsLoggedIn} />}
+              </Tab.Screen>
+              <Tab.Screen name="RegisterForm">
+                {() => <Register />}
+              </Tab.Screen>
+            </>
           )}
         </Tab.Navigator>
       </NavigationContainer>

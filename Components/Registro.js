@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import * as LocalAuthentication from 'expo-local-authentication';
 import moment from 'moment';
 import 'moment/locale/es';
+import axios from 'axios'; // Importa axios
 import { useUser } from './Navigation';
 
 export const Registro = () => {
@@ -15,6 +16,7 @@ export const Registro = () => {
   const [recesoCountdown, setRecesoCountdown] = useState(null);
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [studentInfo, setStudentInfo] = useState(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -42,6 +44,19 @@ export const Registro = () => {
 
     return () => clearInterval(interval);
   }, [recesoTime, recesoCountdown]);
+
+  useEffect(() => {
+    const fetchStudentInfo = async () => {
+      try {
+        const response = await axios.get(`https://entradas-backend.vercel.app/alumnos/mat?matricula=${username}`);
+        setStudentInfo(response.data);
+      } catch (error) {
+        setErrorMsg('Error al obtener la información del estudiante');
+      }
+    };
+
+    fetchStudentInfo();
+  }, [username]);
 
   const getLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -83,33 +98,83 @@ export const Registro = () => {
     }
   };
 
-  const handleEntrada = () => {
+  const handleEntrada = async () => {
     authenticate(async () => {
       const location = await getLocation();
       setEntradaTime(moment().format('LTS'));
       if (location) {
-        Alert.alert('Ubicación', `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`);
+        await axios.post('https://entradas-backend.vercel.app/registros/agregar', {
+          alumno_matricula: username,
+          fecha: moment().format('YYYY-MM-DD'),
+          evento: 'Entrada',
+          hora: moment().format('HH:mm'),
+          ubicacion: {
+            latitud: location.coords.latitude.toString(),
+            longitud: location.coords.longitude.toString(),
+          },
+        });
+        Alert.alert('Entrada registrada');
       }
     });
   };
 
-  const handleSalida = () => {
+  const handleSalida = async () => {
     authenticate(async () => {
       const location = await getLocation();
       setSalidaTime(moment().format('LTS'));
       if (location) {
-        Alert.alert('Ubicación', `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`);
+        await axios.post('https://entradas-backend.vercel.app/registros/agregar', {
+          alumno_matricula: username,
+          fecha: moment().format('YYYY-MM-DD'),
+          evento: 'Salida',
+          hora: moment().format('HH:mm'),
+          ubicacion: {
+            latitud: location.coords.latitude.toString(),
+            longitud: location.coords.longitude.toString(),
+          },
+        });
+        Alert.alert('Salida registrada');
       }
     });
   };
 
-  const handleReceso = () => {
+  const handleInicioReceso = async () => {
     authenticate(async () => {
       const location = await getLocation();
       setRecesoTime(moment());
       setRecesoCountdown('40:00');
       if (location) {
-        Alert.alert('Ubicación', `Latitud: ${location.coords.latitude}, Longitud: ${location.coords.longitude}`);
+        await axios.post('https://entradas-backend.vercel.app/registros/agregar', {
+          alumno_matricula: username,
+          fecha: moment().format('YYYY-MM-DD'),
+          evento: 'Inicio del receso',
+          hora: moment().format('HH:mm'),
+          ubicacion: {
+            latitud: location.coords.latitude.toString(),
+            longitud: location.coords.longitude.toString(),
+          },
+        });
+        Alert.alert('Receso iniciado');
+      }
+    });
+  };
+
+  const handleFinReceso = async () => {
+    authenticate(async () => {
+      const location = await getLocation();
+      setRecesoCountdown(null);
+      if (location) {
+        await axios.post('https://entradas-backend.vercel.app/registros/agregar', {
+          alumno_matricula: username,
+          fecha: moment().format('YYYY-MM-DD'),
+          evento: 'Fin del receso',
+          hora: moment().format('HH:mm'),
+          ubicacion: {
+            latitud: location.coords.latitude.toString(),
+            longitud: location.coords.longitude.toString(),
+          },
+        });
+        Alert.alert('Receso terminado');
       }
     });
   };
@@ -128,17 +193,21 @@ export const Registro = () => {
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.welcomeText}>Bienvenido, {username}</Text>
+          <Text style={styles.welcomeText}>Bienvenido, {studentInfo ? studentInfo.nombre : username}</Text>
+          {studentInfo && <Text style={styles.studentInfo}>Correo: {studentInfo.correo}</Text>}
           <Text style={styles.currentTime}>{currentTime}</Text>
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={handleEntrada}>
               <Text style={styles.buttonText}>Entrada</Text>
             </TouchableOpacity>
             {entradaTime && <Text style={styles.eventTime}>Hora de entrada: {entradaTime}</Text>}
-            <TouchableOpacity style={styles.button} onPress={handleReceso}>
-              <Text style={styles.buttonText}>Receso</Text>
+            <TouchableOpacity style={styles.button} onPress={handleInicioReceso}>
+              <Text style={styles.buttonText}>Iniciar receso</Text>
             </TouchableOpacity>
             {recesoCountdown && <Text style={styles.eventTime}>Tiempo de receso: {recesoCountdown}</Text>}
+            <TouchableOpacity style={styles.button} onPress={handleFinReceso}>
+              <Text style={styles.buttonText}>Terminar receso</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.button} onPress={handleSalida}>
               <Text style={styles.buttonText}>Salida</Text>
             </TouchableOpacity>
@@ -202,6 +271,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 10,
+    textAlign: 'center',
+  },
+  studentInfo: {
+    fontSize: 16,
+    marginBottom: 10,
     textAlign: 'center',
   },
 });

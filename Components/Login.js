@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, Modal } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native'; 
 import { Icon } from 'react-native-elements';
 import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
 import LoadingScreen from './Load';
 import { useUser } from './Navigation';
 
@@ -11,6 +12,7 @@ export default function Login({ setIsLoggedIn }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [deviceUUID, setDeviceUUID] = useState('');
   const navigation = useNavigation();
   const [mostrarContraseña, setMostrarContraseña] = useState(false);
   const { setUsername: setGlobalUsername } = useUser();
@@ -23,6 +25,17 @@ export default function Login({ setIsLoggedIn }) {
     }, [])
   );
 
+  useEffect(() => {
+    const fetchUUID = async () => {
+      const uuid = await SecureStore.getItemAsync('deviceUUID');
+      setDeviceUUID(uuid || ''); 
+    };
+    
+    fetchUUID();
+    console.log('Device UUID:', deviceUUID); 
+
+  }, []);
+
   const toggleMostrarContraseña = () => {
     setMostrarContraseña(!mostrarContraseña);
   };
@@ -34,36 +47,37 @@ export default function Login({ setIsLoggedIn }) {
     setError('');
     setIsLoading(true);
 
-    const passV = password;
-    const nombreV = username;
-
-    if (nombreV === '' && passV === '') {
+    if (username === '' || password === '') {
       setError('Por favor complete ambos campos');
       setIsLoading(false);
       return;
     }
 
-    if (nombreV === '') {
-      setError('El campo del nombre no puede estar vacío. Complete este campo por favor');
-      setIsLoading(false);
-      return;
-    }
+    try {
+      const loginResponse = await axios.get('https://entradas-backend.vercel.app/alumnos/validar', {
+        params: {
+          matricula: username,
+          password: password,
+          deviceUUID: deviceUUID,
+        },
+      });
 
-    if (passV === '') {
-      setError('El campo de la contraseña no puede estar vacío. Complete este campo por favor');
-      setIsLoading(false);
-      return;
-    }
-
-    if (nombreV === 'R' && passV === 'R') {
-      setIsLoggedIn(true);
-      setGlobalUsername(nombreV);
-      navigation.navigate('Inicio');
-    } else {
-      setError('Usuario o contraseña incorrecta');
+      if (loginResponse.data.valid) {
+        setIsLoggedIn(true);
+        setGlobalUsername(username);
+        navigation.navigate('Inicio');
+      } else {
+        setError('Usuario, contraseña o dispositivo no están registrados.');
+      }
+    } catch (error) {
+      setError('Ocurrió un error al iniciar sesión. Inténtalo nuevamente.');
     }
 
     setIsLoading(false);
+  };
+
+  const handleAddStudentPress = () => {
+    navigation.navigate('RegisterForm');
   };
 
   return (
@@ -101,6 +115,10 @@ export default function Login({ setIsLoggedIn }) {
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Inicio de sesión</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.addStudentButton} onPress={handleAddStudentPress}>
+          <Text style={styles.addStudentButtonText}>Añadir Alumno</Text>
+        </TouchableOpacity>
       </View>
 
       <Modal visible={isLoading} transparent={true}>
@@ -130,11 +148,10 @@ const styles = StyleSheet.create({
   },
   passwordInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center', // Alinea verticalmente en el centro
-    justifyContent: 'space-between', // Distribuye espacio entre los elementos
-    width: '90%', // Asegúrate de que ocupe el ancho completo disponible
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '90%',
   },
-  
   visibilityButton: {
     marginLeft: 10,
   },
@@ -143,11 +160,10 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: '#FFFFFF',
     padding: 25,
-    alignItems: 'center', // Centra los elementos hijos horizontalmente
-    justifyContent: 'center', // Centra los elementos hijos verticalmente
-    marginTop: '45%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '30%',
   },
-  
   label: {
     fontSize: 18,
     marginBottom: 5,
@@ -188,11 +204,25 @@ const styles = StyleSheet.create({
     marginTop: 10,
     width: '80%',
   },
+  addStudentButton: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginTop: 10,
+    width: '80%',
+  },
   buttonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
     textAlign: 'center',
     fontSize: 20,
+  },
+  addStudentButtonText: {
+    color: '#000000',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontSize: 15,
   },
   errorText: {
     color: 'red',
